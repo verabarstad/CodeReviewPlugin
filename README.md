@@ -1,4 +1,4 @@
 CodeReviewPlugin
 ================
 
-Our Proof of Concept implementation at UiA, Advanced project IKT411, spring 2013. Performed by Vera Barstad and Vladimir Shulgin
+Our Proof of Concept implementation at UiA, spesialization project autumn 2013
