@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map>
+	<bundle bundleID="450" class="review.Activator" localization="OSGI-INF/l10n/bundle" name="Review" project="review">
+		<library name="testStatic.jar"/>
+		<library name="."/>
+	</bundle>
+</map>

@@ -1,0 +1,294 @@
+package review.analyzis;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.StringTokenizer;
+
+import org.eclipse.jdt.core.dom.AST;
+import org.eclipse.jdt.core.dom.ASTParser;
+import org.eclipse.jdt.core.dom.CompilationUnit;
+import org.eclipse.jdt.core.dom.MethodDeclaration;
+
+import review.analyzis.Feature.FeatureValue;
+import review.classification.NaiveBayes;
+import review.handlers.MyVisitor;
+import review.model.AnalysisResults;
+import review.model.AutomaticAnalysis;
+import review.model.AutomaticReview;
+import review.model.AutomaticReviewResult;
+import review.model.CodeFile;
+import review.model.CodeReview;
+import review.model.Database;
+import review.utils.Common;
+
+public class Analyse {
+	//private static Feature feature = new Feature();
+	private static NaiveBayes naiveB;
+	//private static Database db = new Database();
+	//private static int fileId ;
+    
+//   public Analyse(int leaveOutFileId) {
+//	   this.fileId = leaveOutFileId;
+//	   naiveB = new NaiveBayes(leaveOutFileId);
+//   }
+//    
+//   public Analyse() {
+//	   this.fileId = 0;  //0 = run all
+//	   naiveB = new NaiveBayes();
+//   }
+   
+   public static ArrayList<String> getSelected() {
+	   ArrayList<String> selected = new ArrayList<String>();
+	   selected.add("F1,F2,F3,F4,F5");
+	   selected.add("F1,F2,F3,F4");
+	   selected.add("F2,F3,F4,F5");
+	   selected.add("F1,F2,F3");
+	   selected.add("F1,F3");
+	   selected.add("F2,F4");
+	   return selected;
+   }
+   
+   public static String analyse(int fileId) {
+	   AutomaticAnalysis automaticAnalyse = new AutomaticAnalysis(fileId,"Naïve Bayes", Common.getUser(),Database.getCurrentTimeStamp());
+	   AnalysisResults analysisResults = null;
+	   ArrayList<String> selected = getSelected();
+	   
+	   for (int i = 0; i < selected.size(); i++ )
+	   {
+		   analysisResults = new AnalysisResults(selected.get(i));
+		   automaticAnalyse.addResult(analysisResults);
+	   }
+	   
+	   String analyseResult = "";
+	   ArrayList<CodeFile> aCodeFiles = Database.getCodeFiles("");
+	    if (fileId == 0) {	
+		 
+		  for (int i = 0; i < aCodeFiles.size(); i++) {
+			analyseResult += Analyse.parse(aCodeFiles.get(i).getContentString(),aCodeFiles.get(i).getFileId(), automaticAnalyse);
+		  }
+	    }
+	    else {
+	    	for (int i = 0;i < aCodeFiles.size(); i++)
+	    		if ( aCodeFiles.get(i).getFileId() == fileId) {
+	    			analyseResult += Analyse.parse(aCodeFiles.get(i).getContentString(),fileId, automaticAnalyse);
+	    		}	
+	    		}
+	     String parseResult = "" ;	
+	     
+	     for (int i = 0; i < automaticAnalyse.getAnalysisResults().size();i++) {
+	    	 analysisResults = automaticAnalyse.getAnalysisResults().get(i);
+	    	 parseResult = "\n Features : " + analysisResults.getFeatures() ;
+	    parseResult += "  " + analysisResults.getCorrectness() + ", ";
+			parseResult += " mehods : " + analysisResults.getCountMethods() + ", ";
+			parseResult += " countCorrect : " + analysisResults.getCorrectClassified() + "\n";
+			
+			parseResult += "TP: " +  analysisResults.getTruePositives() + ", ";
+			parseResult += "FP : " + analysisResults.getFalsePositives() + ", ";
+			parseResult += "FN : " + analysisResults.getFalseNegatives() + ", ";
+			parseResult += "TN : " + analysisResults.getTrueNegatives() + ", ";
+			
+			analyseResult += parseResult;
+			//System.out.println(parseResult);
+	     }
+			
+			
+	   return analyseResult;
+   }
+   
+   public static HashMap<String,String> getAnalyzeMap(ArrayList<String> aFeatures, ArrayList<String> mapResult, String features) {
+	   ArrayList<String> useFeatures = new ArrayList<String>();
+	   useFeatures = getArrayListString(features);
+	   
+	   HashMap<String,String> analyzeMap = null;; 		
+ 		if (aFeatures.size() == mapResult.size()) {
+ 			 analyzeMap = new HashMap<String,String>();
+ 	    String f;
+ 	    String v;
+ 	         
+			for (int i = 0; i < aFeatures.size(); i++)	{ 				
+				f = aFeatures.get(i);
+				if (useFeatures.contains(f)) {
+				  v = mapResult.get(i);
+				  analyzeMap.put(f, v);	
+				 }
+ 		}	    
+    }
+ 		return analyzeMap;
+   }
+   
+   public static String parse(String input, Integer fileId, AutomaticAnalysis automaticAnalyse){
+	   CodeReview codeReview = null;
+	   String parseResult = " \n\n FileId :" + fileId + "\n";
+	   naiveB = new NaiveBayes(fileId);
+	    ASTParser parser = ASTParser.newParser(AST.JLS4);
+		parser.setSource(input.toCharArray());
+		parser.setKind(ASTParser.K_COMPILATION_UNIT);
+		
+		final CompilationUnit cu = (CompilationUnit) parser.createAST(null);
+		AutomaticReview automaticReview = null;
+		ArrayList<AutomaticReviewResult> aResults = null;
+		MyVisitor visitor = new MyVisitor();
+	      cu.accept(visitor);
+	     
+        AnalysisResults analysisResults;          
+	      for (MethodDeclaration method : visitor.getMethods()) {	 
+	    	  codeReview = Database.getHumanReview(fileId,method.getStartPosition(), method.getLength());
+	    	  automaticReview = new AutomaticReview(fileId,method.getStartPosition(), method.getLength());
+	    	  Integer HR_Type = 0;
+	    	  String hrResult = "";
+			try {
+				HR_Type = codeReview.getType();
+				if (HR_Type == 1)
+					hrResult = "Like";
+				else {
+					hrResult = "Dislike";
+				}
+			} catch (Exception e) {
+				HR_Type = 0;
+				hrResult = "No previous reviews, or method not found";
+				//e.printStackTrace();
+			}
+	    	  
+	    	automaticReview.setHumanReviewType(HR_Type);
+	    	String features = "F1,F2,F3,F4,F5";
+	    	ArrayList<String> aFeatures = getArrayListString(features);
+	    	String result = 	Static.getParameters(features,method.toString()); 
+	  	  	ArrayList<String>mapResult = mapValues(features,result);
+	    	  
+  			automaticReview = classify(naiveB,automaticReview,aFeatures, mapResult);   
+ 	        parseResult += "\n-----------------------------------------------------------------\n"
+	        		    + "Method name : " + method.getName() + "\n"
+		        		+ " parameters: [" + features + "] " + mapResult + "(" + result + ")"		
+		        		+ "\n-----------------------------------------------------------------\n"
+	                    + "HumanReview : " + hrResult + "\n";
+
+  			aResults = automaticReview.getAutomaticReviewResults();
+  			
+  			for (int i = 0 ; i < aResults.size(); i++) {
+  				int predictedType = aResults.get(i).getType() ;
+  				analysisResults = automaticAnalyse.getResult(aResults.get(i).getFeatures());
+  				
+  				if (analysisResults == null ) { }
+  				else {
+  				analysisResults.incCountMethods();
+  				if (predictedType == automaticReview.getHumanReviewType() ) {
+  					analysisResults.incCorrectClassified();
+  					if (predictedType == 1) 
+  						analysisResults.incTruePositives();
+  					else
+						analysisResults.incTrueNegatives();
+  				  }
+  				else 
+  					if (predictedType == 1)
+  						analysisResults.incFalsePositives();
+  					else
+						analysisResults.incFalseNegatives();
+  				}
+  				
+  				parseResult += "" + aResults.get(i).getFeatures() +  " : ";
+  				if (aResults.get(i).getType() == 1)
+  					parseResult += "Like ";
+  					else {
+						parseResult += "Dislike ";
+					}
+  				parseResult +=  + aResults.get(i).getProbability() + "%\n";
+  				
+  			}
+  			//parseResult += "Offset : " + automaticReview.getOffset() + " Length : " + automaticReview.getLength();  			
+	  		}		          
+	      //}
+	return parseResult;
+	   
+	   
+   }
+   
+   @SuppressWarnings("static-access")
+private static AutomaticReview  classify(NaiveBayes naiveB2,AutomaticReview automaticReview, 
+		       ArrayList<String> aFeatures, ArrayList<String> aResult) {
+	   AutomaticReviewResult automaticReviewResult;
+	   HashMap<String,String> analyzeMap = null;
+	   ArrayList<String> selected = getSelected();
+	   for (int i = 0; i < selected.size(); i++) {
+		   analyzeMap = getAnalyzeMap(aFeatures,aResult,selected.get(i));	
+		  // System.out.println("Amap : " + analyzeMap);
+		   automaticReviewResult = naiveB.classify(analyzeMap, selected.get(i));
+		   automaticReview.addAutomaticReviewResult(automaticReviewResult);
+		   
+	   }
+	   return automaticReview;
+	
+}
+   
+//   private static String classify(NaiveBayes naiveB2,ArrayList<String> aFeatures, ArrayList<String> aResult) {
+//	   String result = "";
+//	   AutomaticReviewResult automaticReviewResult;
+//	   HashMap<String,String> analyzeMap = null;
+//	   ArrayList<String> selected = getSelected();
+//	   
+//	   for (int i = 0; i < selected.size(); i++) {
+//		   analyzeMap = getAnalyzeMap(aFeatures,aResult,selected.get(i));	
+//		   result += "\n" + selected.get(i) + " : " + naiveB2.classify(analyzeMap);		   
+//	   } 
+//	   return result;
+//	   
+//	
+//}
+
+public static ArrayList<String> getArrayListString(String list) {
+		ArrayList<String> array = new ArrayList<String>();
+		StringTokenizer st = new StringTokenizer(list, ",");
+		while(st.hasMoreTokens()){
+		    array.add(st.nextToken());
+         }
+		return array;
+	}
+	public static ArrayList<Double> getArrayListDouble(String list) {
+		ArrayList<Double> array = new ArrayList<Double>();
+		StringTokenizer st = new StringTokenizer(list, ",");
+		while(st.hasMoreTokens()){
+		    array.add(Double.parseDouble(st.nextToken()));
+         }
+		return array;
+	}
+	
+	
+	public static ArrayList<String> mapValues(String features, String result) {
+		ArrayList<String> arrayResult = new ArrayList<String>();
+		ArrayList<String> aFeatures = getArrayListString(features);
+		ArrayList<Double> aResult = getArrayListDouble(result);
+		if (aFeatures.size() == aResult.size()) {
+			
+			for (int i = 0; i < aFeatures.size(); i++ )
+			{
+				FeatureValue fValue = Feature.getFeatureValue(aFeatures.get(i), (int)(aResult.get(i)*100));		
+				try {
+					arrayResult.add(fValue.getValue());
+				} catch (Exception e) {
+					//e.printStackTrace();
+				}
+			}
+			return arrayResult;
+		}
+		else
+		  //something wrong... 
+		  return null;
+	}
+	
+public static void insertAnalyzis(int fileId, int reviewId, int reviewType, String source) {
+	String features = "F1,F2,F3,F4,F5";
+		String result = Static.getParameters(features,source); //NB returnerer alle...   F1,F2,F3,F4,F5
+		ArrayList<String> aFeatures = getArrayListString(features);
+		ArrayList<String> mapResult = mapValues(features,result);
+		ArrayList<Double> aResults = getArrayListDouble(result);
+		String f;
+	    String v;
+	    int p;
+		for (int i = 0; i < aFeatures.size(); i++)	{
+			f = aFeatures.get(i);
+			v = mapResult.get(i);
+			p = (int)(aResults.get(i)*100);
+			Database.insertFeatureAnalysis(fileId,reviewId, reviewType,f, v, p);			//System.out.println(out);
+			}    
+			
+		}   
+}

@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin>
+   <extension point="org.eclipse.ui.commands">
+     <category
+            name="Code Review"
+            id="review.commands.category">
+      </category>
+      <command
+            name="Like"
+            categoryId="review.commands.category"
+            id="review.commands.Like">
+      </command>
+   </extension>
+      
+   <extension
+         point="org.eclipse.ui.perspectives">
+       <perspective
+         	class = "review.perspective.Perspective"
+         	id="review.Perspective"
+         	name = "Code Review">
+       </perspective>
+   </extension>
+   
+    <extension
+         point="org.eclipse.ui.editors">   
+        <editor
+            class="review.editors.HumanRating"
+            default="true"
+            id="review.editors.HumanRating"
+            name="Code Review Human">
+      </editor>
+      <editor
+            class="review.editors.Analyzis"
+            default="true"
+            id="review.editors.Analyzis"
+            name="Analyzis">
+      </editor>
+         <editor
+            class="review.editors.BayesEditor"
+            default="true"
+            id="review.editors.BayesEditor"
+            name="NaiveBayes">
+      </editor>
+   </extension>
+   
+   
+   <extension
+         point="org.eclipse.ui.views">
+       <category
+         id = "CodeReview"
+         name = "Code Reviewing">
+       </category>
+       <view
+          name = "Code File Details"
+       	  category = "CodeReview"
+       	  class = "review.views.CodeFileDetails"
+       	  id = "review.views.CodeFileDetails">
+       </view>
+       <view
+          name = "Files for code Review"
+       	  category = "CodeReview"
+       	  class = "review.views.FileList"
+       	  id = "review.views.FileList">
+       </view>
+         
+   </extension>
+   
+   
+   <extension point="org.eclipse.ui.menus">
+    <menuContribution locationURI="popup:org.eclipse.jdt.ui.PackageExplorer">
+      <command commandId="review.handlers.AddFile"
+        label="Add File for Code Review" style="push">
+      </command>
+    </menuContribution>
+  </extension>
+   
+    <extension point="org.eclipse.ui.menus">
+    <menuContribution locationURI="popup:org.eclipse.ui.part.EditorPart">
+      <command commandId="review.handlers.AddFile"
+        label="Add File for Code Review" style="push">
+      </command>
+    </menuContribution>
+  </extension>
+  
+  <extension point="org.eclipse.ui.menus">
+    <menuContribution locationURI="popup:review.editors.HumanRating">
+      <command commandId="review.handlers.AddFile"
+        label="Static analysis" style="push">
+      </command>
+      <command commandId="review.handlers.AddFile"
+        label="Automatic analysis" style="push">
+      </command>
+    </menuContribution>
+  </extension>
+  
+    <extension point="org.eclipse.ui.menus">
+    <menuContribution locationURI="popup:review.editors.Analyzis">
+      <command commandId="review.handlers.AnalyzeFile"
+        label="Test analyze" style="push">
+      </command>
+    </menuContribution>
+  </extension>
+  
+  <extension point="org.eclipse.ui.commands">
+    <command defaultHandler="review.handlers.AddFile"
+      id="review.handlers.AddFile" name="Add">
+    </command>
+  </extension>
+  
+    <extension point="org.eclipse.ui.commands">
+    <command defaultHandler="review.handlers.AnalyzeFile"
+      id="review.handlers.AnalyzeFile" name="Analyze">
+    </command>
+  </extension>
+</plugin>
